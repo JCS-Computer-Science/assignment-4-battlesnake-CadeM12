@@ -26,6 +26,17 @@ export default function move(gameState){
     // TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
     // gameState.board contains an object representing the game board including its width and height
     // https://docs.battlesnake.com/api/objects/board
+
+    //console.log(gameState.board);
+
+    let board = {};
+
+    for(let i=0; i<gameState.board.height; i++){
+        let row = [];
+        for(let j=0; j<gameState.board.width; j++){
+            row.push({x:j, y:i});
+        }
+    }
     
     // TODO: Step 2 - Prevent your Battlesnake from colliding with itself
     // gameState.you contains an object representing your snake, including its coordinates

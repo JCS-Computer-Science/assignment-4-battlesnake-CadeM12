@@ -1,9 +1,9 @@
-let game;
+let gameStateG;
 let board = {};
 let moveSafety;
 
 export default function move(gameState){
-    game = gameState;
+    gameStateG = gameState;
 
     moveSafety = {
         up: true,
@@ -16,16 +16,19 @@ export default function move(gameState){
     const myHead = gameState.you.body[0];
     const myNeck = gameState.you.body[1];
     
-    if (myNeck.x < myHead.x || myHead.x <= 0) {        // Neck is left of head, don't move left
+    if (myNeck.x < myHead.x || myHead.x == 0) {        // Neck is left of head, don't move left
         moveSafety.left = false;
         
-    } else if (myNeck.x > myHead.x || myHead.x >= gameState.board.width+1) { // Neck is right of head, don't move right
+    } 
+    if (myNeck.x > myHead.x || myHead.x == gameState.board.width-1) { // Neck is right of head, don't move right
         moveSafety.right = false;
         
-    } else if (myNeck.y < myHead.y || myHead.y <= 0) { // Neck is below head, don't move down
+    } 
+    if (myNeck.y < myHead.y || myHead.y == 0) { // Neck is below head, don't move down
         moveSafety.down = false;
         
-    } else if (myNeck.y > myHead.y || myHead.y >= gameState.board.height+1) { // Neck is above head, don't move up
+    } 
+    if (myNeck.y > myHead.y || myHead.y == gameState.board.height-1) { // Neck is above head, don't move up
         moveSafety.up = false;
     }
     
@@ -38,12 +41,19 @@ export default function move(gameState){
     let c = 0;
     for(let i=0; i<gameState.board.height; i++){
         for(let j=0; j<gameState.board.width; j++){
-            board[c] = {position:{x:j, y:i}, connections:[]};
+            board[c] = {position:{x:j, y:i}, connections:[], id:c};
             c++;
         }
     }
     
     connectNodes();
+
+    let path = aStar(board, getNodeId(myHead), getNodeId(gameState.board.food[0])).path[1] ?? board[getNodeId(myHead)].connections[Math.floor(Math.random(board[getNodeId(myHead)].connections.length))][0]
+
+    //console.log(aStar(board, getNodeId(myHead), getNodeId(gameState.board.food[0])).path[0])
+    //console.log(board[getNodeId(myHead)].connections[Math.floor(Math.random(board[getNodeId(myHead)].connections.length))][0])
+    //console.log(path);
+    let nextMove = calculateNextMove(path);
 
     // TODO: Step 2 - Prevent your Battlesnake from colliding with itself
     // gameState.you contains an object representing your snake, including its coordinates
@@ -66,7 +76,7 @@ export default function move(gameState){
     }
     
     // Choose a random move from the safe moves
-    const nextMove = safeMoves[Math.floor(Math.random() * safeMoves.length)];
+    //const nextMove = safeMoves[Math.floor(Math.random() * safeMoves.length)];
     //console.log([board, getNodeId(myHead), getNodeId(gameState.board.food[0])]);
     //console.log(aStar(board, getNodeId(myHead), getNodeId(gameState.board.food[0])));
 
@@ -78,10 +88,23 @@ export default function move(gameState){
 }
 
 function connectNodes(){
-    for(let i = 0; i < (game.board.width * game.board.height); i++){
-        if((board[i].position.x == board[i].position.x-1 && moveSafety.left) || (board[i].position.x == board[i].position.x+1 && moveSafety.right) || (board[i].position.y == board[i].position.y-1 && moveSafety.up) || (board[i].position.y == board[i].position.y+1 && moveSafety.down)){
-            board[i].connections.push(i);
-        };
+    let snakeBodies = [];
+    for(let i = 0; i < gameStateG.board.snakes.length; i++){
+        for(let j = 0; j < gameStateG.board.snakes[i].body.length; j++){
+            snakeBodies.push(getNodeId(gameStateG.board.snakes[i].body[j]))
+        }
+    }
+    for(let i = 0; i < gameStateG.you.body.length; i++){
+        snakeBodies.push(getNodeId(gameStateG.you.body[i]));
+    }
+
+    for(let i = 0; i < (gameStateG.board.width * gameStateG.board.height); i++){
+        for(let j = 0; j < (gameStateG.board.width * gameStateG.board.height); j++)
+        {
+            if(((board[j].position.x == board[i].position.x-1 && board[j].position.y == board[i].position.y && moveSafety.left) || (board[j].position.x == board[i].position.x+1 && board[j].position.y == board[i].position.y && moveSafety.right) || (board[j].position.y == board[i].position.y-1 && board[j].position.x == board[i].position.x && moveSafety.up) || (board[j].position.y == board[i].position.y+1 && board[j].position.x == board[i].position.x && moveSafety.down))&&(!snakeBodies.includes(j))){
+                board[i].connections.push([j, 1]);
+            };
+        }
     }
 }
 
@@ -99,9 +122,9 @@ function aStar(graph, start, target){
         };
         //console.log(current);
         //console.log(current.node)
-        console.log(graph[current.node]);
+        //console.log(graph[current.node].connections);
         
-        for (let [neighbor, cost] of graph[current.node.connections]) {
+        for (let [neighbor, cost] of graph[current.node].connections) {
             let tentativeG = gScores[current.node] + cost;
 
             
@@ -119,12 +142,29 @@ function aStar(graph, start, target){
 
 function heuristic(start, target, nodes){
     if(start != null && target != null){
-        return (Math.abs(nodes[start-1].position.universalX - nodes[target-1].position.universalX) + Math.abs(nodes[start-1].position.universalY - nodes[target-1].position.universalY));
+        return (Math.abs(nodes[start].position.x - nodes[target].position.x) + Math.abs(nodes[start].position.y - nodes[target].position.y));
     } else {
         return Infinity;
     };
 };
 
 function getNodeId(pos){
-    return pos.y*game.board.width + pos.x;
+    return pos.y*gameStateG.board.width + pos.x;
+}
+
+function calculateNextMove(path){
+    let headNode = getNodeId(gameStateG.you.body[0]);
+    console.log([path, headNode])
+    if(board[path].position.x == board[headNode].position.x-1){
+        return "left"
+    }
+    if(board[path].position.x == board[headNode].position.x+1){
+        return "right"
+    }
+    if(board[path].position.y == board[headNode].position.y-1){
+        return "down"
+    }
+    if(board[path].position.y == board[headNode].position.y+1){
+        return "up"
+    }
 }

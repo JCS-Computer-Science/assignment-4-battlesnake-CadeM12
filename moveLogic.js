@@ -1,11 +1,11 @@
-let gameStateG;
-let board = {};
 
-export default function move(gameState){
-    gameStateG = gameState;
-
+export default function move(game){
+    const gameState = game;
     const myHead = gameState.you.body[0];
+    const headNode = getNodeId(myHead, gameState);
+    let board = {};
 
+    //INIT BOARD
     let c = 0;
     for(let i=0; i<gameState.board.height; i++){
         for(let j=0; j<gameState.board.width; j++){
@@ -13,73 +13,97 @@ export default function move(gameState){
             c++;
         }
     }
-    
-    connectNodes();
+    board = connectNodes(gameState, board);
 
+    //PICK SNAKE STATE
     let state;
     let pathfindTo;
 
-    if(gameState.you.health < 20 || gameState.you.body.length < 7){
+    if(gameState.you.health < 30 || gameState.you.body.length %2 != 0){
         state = 'hungry';
-        pathfindTo = nearestFood();
-    } else if(gameState.board.snakes.length > 1){
-        state = 'hunting';
-        pathfindTo = snakeHead(nearestSnakeHead());
+        pathfindTo = nearestFood(gameState, board, myHead);
+    //} else if(gameState.board.snakes.length > 1){
+    //    state = 'hunting';
+    //    //pathfindTo = snakeHead(gameState);
     } else {
-        state = 'chilling';
-        //pathfindTo = getNodeId(gameState.you.body[gameState.you.body.length-1]);
+        state = 'chasing';
+        pathfindTo = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
         //console.log(pathfindTo);
-        pathfindTo = board[getNodeId(myHead)].connections[Math.floor(Math.random()*board[getNodeId(myHead)].connections.length)][0];
+        //pathfindTo = board[headNode].connections[Math.floor(Math.random()*board[headNode].connections.length)][0];
     }
 
-    if(pathfindTo == undefined){
-        pathfindTo = board[getNodeId(myHead)].connections[Math.floor(Math.random()*board[getNodeId(myHead)].connections.length)][0];
-        console.log(pathfindTo);
+    if((state != 'chasing') || (state == 'chasing' && !beside(myHead, gameState.you.body[gameState.you.body.length-1]))){
+        pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
     }
 
-    pathfindTo = flood(pathfindTo);
-
-    let path = aStar(board, getNodeId(myHead), pathfindTo).path[1];
-    if(state == 'chilling'){
-        console.log(path);
+    if(state == 'hungry' && bfs(board, pathfindTo) < 10 && beside(myHead, gameState.you.body[gameState.you.body.length-1])){
+        pathfindTo = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
     }
-    let nextMove = calculateNextMove(path);
+
+    let path;
+    if(!beside(myHead, board[pathfindTo].position)){
+        path = aStar(board, headNode, pathfindTo).path[1];
+    } else {
+        path = pathfindTo;
+    }
+
+    //IF PATH UNDEFINED THEN CHOOSE RANDOM
+    if(path == undefined){
+        path = board[headNode].connections[Math.floor(Math.random()*board[headNode].connections.length)][0];
+        //console.log(pathfindTo);
+    }
+    
+    let nextMove = calculateNextMove(path, board, headNode);
     
     console.log(`MOVE ${gameState.turn}: ${nextMove}`)
     return { move: nextMove };
 }
 
-function connectNodes(){
+//BUILD GRAPH
+//
+//
+function connectNodes(gameState, board){
     let snakeBodies = [];
-    for(let i = 0; i < gameStateG.board.snakes.length; i++){
-        if(gameStateG.board.snakes[i].id != gameStateG.you.id){
-            for(let j = 0; j < gameStateG.board.snakes[i].body.length-1; j++){
-                snakeBodies.push(getNodeId(gameStateG.board.snakes[i].body[j]))
+    let snakeHeads = [];
+    for(let i = 0; i < gameState.board.snakes.length; i++){
+        if(gameState.board.snakes[i].id != gameState.you.id){
+            for(let j = 0; j < gameState.board.snakes[i].body.length-1; j++){
+                snakeBodies.push(getNodeId(gameState.board.snakes[i].body[j], gameState))
             }
-            //let headPoint = gameStateG.board.snakes[i].body[0];
-            //snakeBodies.push(getNodeId({x: headPoint.x+1, y: headPoint.y}));
-            //snakeBodies.push(getNodeId({x: headPoint.x-1, y: headPoint.y}));
-            //snakeBodies.push(getNodeId({x: headPoint.x, y: headPoint.y+1}));
-            //snakeBodies.push(getNodeId({x: headPoint.x, y: headPoint.y-1}));
+            let headPoint = gameState.board.snakes[i].body[0];
+            if(gameState.board.snakes[i].body.length >= gameState.you.body.length){
+                snakeBodies.push(getNodeId({x: headPoint.x+1, y: headPoint.y}, gameState));
+                snakeBodies.push(getNodeId({x: headPoint.x-1, y: headPoint.y}, gameState));
+                snakeBodies.push(getNodeId({x: headPoint.x, y: headPoint.y+1}, gameState));
+                snakeBodies.push(getNodeId({x: headPoint.x, y: headPoint.y-1}, gameState));
+            }
         }
     }
-    for(let i = 0; i < gameStateG.you.body.length-1; i++){
-        snakeBodies.push(getNodeId(gameStateG.you.body[i]));
+    for(let i = 0; i < gameState.you.body.length-1; i++){
+        snakeBodies.push(getNodeId(gameState.you.body[i], gameState));
     }
 
-    for(let i = 0; i < (gameStateG.board.width * gameStateG.board.height); i++){
-        for(let j = 0; j < (gameStateG.board.width * gameStateG.board.height); j++)
+    for(let i = 0; i < (gameState.board.width * gameState.board.height); i++){
+        for(let j = 0; j < (gameState.board.width * gameState.board.height); j++)
         {
             if(((board[j].position.x == board[i].position.x-1 && board[j].position.y == board[i].position.y) || 
             (board[j].position.x == board[i].position.x+1 && board[j].position.y == board[i].position.y) || 
             (board[j].position.y == board[i].position.y-1 && board[j].position.x == board[i].position.x) || 
             (board[j].position.y == board[i].position.y+1 && board[j].position.x == board[i].position.x)) &&
             (!snakeBodies.includes(j))){
-                board[i].connections.push([j, 1]);
+                if(snakeHeads.includes(j)){
+                    board[i].connections.push([j, 100]);
+                }else{
+                    board[i].connections.push([j, 1]);
+                }
             };
         }
     }
+
+    return board;
 }
+//
+// END BUILD GRAPH
 
 function aStar(graph, start, target){
     let openSet = [{ node: start, f: 0, path: [start] }];
@@ -117,41 +141,53 @@ function heuristic(start, target, nodes){
     };
 };
 
-function getNodeId(pos){
-    return pos.y*gameStateG.board.width + pos.x;
+function getNodeId(pos, gameState){
+    return pos.y*gameState.board.width + pos.x;
 }
 
-function nearestFood(){
+function nearestFood(gameState, board, myHead){
     let nearest = {path: Infinity, food: undefined};
-    for(let i = 0; i < gameStateG.board.food.length; i++){
-        let dist = Math.sqrt((gameStateG.board.food[i].x - gameStateG.you.body[0].x)**2 + (gameStateG.board.food[i].y - gameStateG.you.body[0].y)**2)
-        if(dist < nearest.path){
+    let possible = {path:Infinity, food: undefined};
+    for(let i = 0; i < gameState.board.food.length; i++){
+        let dist = Math.sqrt((gameState.board.food[i].x - gameState.you.body[0].x)**2 + (gameState.board.food[i].y - gameState.you.body[0].y)**2)
+        if(dist < nearest.path && board[getNodeId(gameState.board.food[i], gameState)].connections.length >= 3){
             nearest.path = dist;
             nearest.food = i;
         }
+        if(dist < possible.path && board[getNodeId(gameState.board.food[i], gameState)].connections.length == 2){
+            possible.path = dist;
+            possible.food = i;
+        }
     }
-    return getNodeId(gameStateG.board.food[nearest.food]);
+    if(nearest.food){
+        return getNodeId(gameState.board.food[nearest.food], gameState);
+    } else if(possible.food){
+        return getNodeId(gameState.board.food[possible.food], gameState);
+    } else {
+        return board[getNodeId(myHead, gameState)].connections[Math.floor(Math.random()*board[getNodeId(myHead, gameState)].connections.length)][0];
+    }
+
 }
 
-function nearestSnakeHead(){
+function nearestSnakeHead(gameState){
     let nearest = {path: Infinity, snake: undefined};
-    for(let i = 0; i < gameStateG.board.snakes.length; i++){
-        if(Math.sqrt(gameStateG.board.snakes[i].body[0].x**2 + gameStateG.board.snakes[i].body[0].y**2) < nearest.path){
+    for(let i = 0; i < gameState.board.snakes.length; i++){
+        if(Math.sqrt(gameState.board.snakes[i].body[0].x**2 + gameState.board.snakes[i].body[0].y**2) < nearest.path){
             nearest.snake = i;
         }
     }
 
-    return gameStateG.board.snakes[nearest.snake].id;
+    return gameState.board.snakes[nearest.snake].id;
 }
 
-function snakeHead(){
+function snakeHead(gameState){
 
 }
 
-function flood(prevPath){
+function flood(prevPath, headNode, board, gameState, myHead){
     let paths = [];
-    for(let i = 0; i < board[getNodeId(myHead)].connections.length; i++){
-        paths.push({connection: i, space: bfs(board, board[getNodeId(myHead)].connections[i][0])})
+    for(let i = 0; i < board[headNode].connections.length; i++){
+        paths.push({connection: i, space: bfs(board, board[headNode].connections[i][0])})
     };
 
     paths.sort((a, b) => b.space - a.space);
@@ -166,12 +202,14 @@ function flood(prevPath){
     }
 
     if(!equal){
-        console.log("not equal");
-        console.log(paths);
-        console.log(board[getNodeId(myHead)].connections[paths[0].connection][0]);
-        return board[getNodeId(myHead)].connections[paths[0].connection][0];
+        if(paths[1]){
+            if(paths[1].space == paths[0].space && board[getNodeId(myHead, gameState)].connections[paths[1].connection][0] == prevPath){
+                return prevPath
+            }
+        }
+        return board[headNode].connections[paths[0].connection][0];
     }
-
+    
     return prevPath;
 }
 
@@ -195,11 +233,16 @@ function bfs(graph, start) {
     }
 
     return c;
-  }
+}
+function beside(posA, posB){
+    if((Math.abs(posA.x - posB.x) < 2 && posA.y == posB.y) || (Math.abs(posA.y - posB.y) < 2 && posA.x == posB.x)){
+        return true;
+    } else {
+        return false;
+    }
+}
 
-function calculateNextMove(path){
-    let headNode = getNodeId(gameStateG.you.body[0]);
-    console.log([path, headNode])
+function calculateNextMove(path, board, headNode){
     if(board[path].position.x == board[headNode].position.x-1){
         return "left"
     }

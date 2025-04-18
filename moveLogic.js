@@ -94,6 +94,8 @@ export default function move(game){
 function connectNodes(gameState, board){
     let snakeBodies = [];
     let snakeHeads = [];
+    const tailNode = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
+
     for(let i = 0; i < gameState.board.snakes.length; i++){
         if(gameState.board.snakes[i].id != gameState.you.id){
             for(let j = 0; j < gameState.board.snakes[i].body.length-1; j++){
@@ -108,8 +110,11 @@ function connectNodes(gameState, board){
             }
         }
     }
-    for(let i = 0; i < gameState.you.body.length-1; i++){
-        snakeBodies.push(getNodeId(gameState.you.body[i], gameState));
+    for(let i = 0; i < gameState.you.body.length; i++){
+        const bodyNode = getNodeId(gameState.you.body[i], gameState);
+        if(bodyNode != tailNode || (gameState.you.health == 100 && beside(gameState.you.body[0], gameState.you.body[gameState.you.body.length-1]))){
+            snakeBodies.push(bodyNode);
+        }
     }
 
     for(let i = 0; i < (gameState.board.width * gameState.board.height); i++){
@@ -239,7 +244,7 @@ function checkEnclosure(board, headNode, gameState){
     let arr = [up, down, left, right];
     arr = arr.filter((dir) => dir != undefined);
     arr = arr.sort((a, b) => a - b);
-    return arr[arr.length-1] < 10;
+    return arr[arr.length-1] < gameState.you.body.length;
 }
 
 function findClosestOpening(gameState, board, headNode) {
@@ -306,13 +311,16 @@ function flood(prevPath, headNode, board, gameState, myHead){
     }
 
     let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
-    
-    if(findTail.path[1] && !equal){
+    //console.log(findTail);
+    if(findTail.path[1] && (!equal)){
         console.log("finding tail side " + findTail.path);
         return findTail.path[1];
     }
     
     if(!equal){
+        if(beside(gameState.you.body[0], gameState.you.body[gameState.you.body.length-1]) && gameState.you.health < 100){
+            return getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
+        }
         //console.log(board[headNode].connections, board[getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)].connections);
         //console.log(board);
 

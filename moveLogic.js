@@ -17,7 +17,6 @@ export default function move(game){
     }
     board = connectNodes(gameState, board);
 
-    //PICK SNAKE STATE
     let state;
     let pathfindTo;
 
@@ -30,54 +29,11 @@ export default function move(game){
         }
     }
 
-    //if(gameState.you.health < 30 || gameState.you.body.length < longestLength || gameState.you.body.length %2 != 0){
-    //    state = 'hungry';
-    //    pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[gameState.you.body.length-1]);
-    //    pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[0]);
-    ////} else if(gameState.board.snakes.length > 1){
-    ////    state = 'hunting';
-    ////    //pathfindTo = snakeHead(gameState);
-    //} else {
-    //    state = 'chasing';
-    //    pathfindTo = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
-    //    //console.log(pathfindTo);
-    //    //pathfindTo = board[headNode].connections[Math.floor(Math.random()*board[headNode].connections.length)][0];
-    //}
-//
-    ////console.log(pathfindTo)
-//
-    //if((state != 'chasing') || (state == 'chasing' && !aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)).path[1])){
-    //    pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
-    //}
-//
-    ////console.log(pathfindTo)
-//
-    //if(state == 'hungry' && bfs(board, pathfindTo) < 10 && beside(myHead, gameState.you.body[gameState.you.body.length-1])){
-    //    pathfindTo = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
-    //}
-//
-    ////console.log(pathfindTo)
-//
-    //let path = aStar(board, headNode, pathfindTo);
-    //console.log(path, pathfindTo, state, bfs(board, pathfindTo));
-//
-    //if(path.cost > 50){
-    //    path = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
-    //}
-    //
-    //path = path.path[1];
-//
-    ////IF PATH UNDEFINED THEN CHOOSE RANDOM
-    //if(path == undefined){
-    //    path = board[headNode].connections[Math.floor(Math.random()*board[headNode].connections.length)][0];
-    //    //console.log(pathfindTo);
-    //}
-
     pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[0]);
     pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
-    if(checkEnclosure(board, headNode, gameState)){
-        console.log("enclosed");
-        console.log(findClosestOpening(gameState, board, headNode));
+    if(checkEnclosure(board, headNode, gameState).turns == 0){
+        //console.log("enclosed");
+        pathfindTo = findClosestOpening(gameState, board, headNode).path;
     }
 
     let path = aStar(board, headNode, pathfindTo);
@@ -94,6 +50,7 @@ export default function move(game){
 function connectNodes(gameState, board){
     let snakeBodies = [];
     let snakeHeads = [];
+    let food = [];
     const tailNode = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
 
     for(let i = 0; i < gameState.board.snakes.length; i++){
@@ -116,6 +73,9 @@ function connectNodes(gameState, board){
             snakeBodies.push(bodyNode);
         }
     }
+    for(let i = 0; i < gameState.board.food.length; i++){
+        food.push(getNodeId(gameState.board.food[i], gameState));
+    }
 
     for(let i = 0; i < (gameState.board.width * gameState.board.height); i++){
         for(let j = 0; j < (gameState.board.width * gameState.board.height); j++)
@@ -127,7 +87,9 @@ function connectNodes(gameState, board){
             (!snakeBodies.includes(j))){
                 if(snakeHeads.includes(j)){
                     board[i].connections.push([j, 100]);
-                }else{
+                }else if(food.includes(j)){
+                    board[i].connections.push([j, 5]);
+                } else {
                     board[i].connections.push([j, 1]);
                 }
             };
@@ -199,7 +161,11 @@ function nearestFood(gameState, board, myHead, start){
     let nearest = {path: Infinity, food: undefined};
     let possible = {path:Infinity, food: undefined};
     for(let i = 0; i < safeFood.length; i++){
-        let dist = aStar(board, getNodeId(myHead, gameState), safeFood[i]).path.length;
+        let pathToFood = aStar(board, getNodeId(myHead, gameState), safeFood[i])
+        if(pathToFood.cost > 50){
+            continue;
+        }
+        let dist = pathToFood.path.length;
         if(dist < nearest.path && (board[safeFood[i]].connections.length >= 3 || (board[safeFood[i]].connections.length >= 1 && beside(myHead, board[safeFood[i]].position)))){
             nearest.path = dist;
             nearest.food = i;
@@ -214,8 +180,8 @@ function nearestFood(gameState, board, myHead, start){
     } else if(possible.food != undefined){
         return safeFood[possible.food];
     } else {
-        console.log("No Food, Making Random Move");
-        return board[getNodeId(myHead, gameState)].connections[Math.floor(Math.random()*board[getNodeId(myHead, gameState)].connections.length)][0];
+        console.log("No Food, Moving to Tail");
+        return aStar(board, getNodeId(myHead, gameState), getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)).path[1];
     }
     
 }
@@ -312,18 +278,16 @@ function flood(prevPath, headNode, board, gameState, myHead){
 
     let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
     //console.log(findTail);
-    if(findTail.path[1] && (!equal)){
-        console.log("finding tail side " + findTail.path);
+
+    if(findTail.path[1] && !aStar(board, board[headNode].connections[paths[0].connection][0], board[headNode].connections[paths[paths.length-1].connection][0]).path[1]){
+        //console.log("finding tail side " + findTail.path);
         return findTail.path[1];
     }
     
+    if(beside(gameState.you.body[0], gameState.you.body[gameState.you.body.length-1]) && gameState.you.health < 100 && gameState.you.health > 50 && checkEnclosure(board, headNode, gameState)){
+        return getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
+    }
     if(!equal){
-        if(beside(gameState.you.body[0], gameState.you.body[gameState.you.body.length-1]) && gameState.you.health < 100){
-            return getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
-        }
-        //console.log(board[headNode].connections, board[getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)].connections);
-        //console.log(board);
-
         if(paths[1]){
             if(paths[1].space == paths[0].space && board[getNodeId(myHead, gameState)].connections[paths[1].connection][0] == prevPath){
                 return prevPath
@@ -331,6 +295,7 @@ function flood(prevPath, headNode, board, gameState, myHead){
         }
         return board[headNode].connections[paths[0].connection][0];
     }
+
     return prevPath;
 }
 

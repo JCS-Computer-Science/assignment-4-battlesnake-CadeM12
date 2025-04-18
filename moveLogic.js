@@ -243,6 +243,11 @@ function findClosestOpening(gameState, board, headNode) {
     const snakeBody = gameState.you.body;
     const tailIndex = snakeBody.length - 1;
 
+    const pathToTail = aStar(board, headNode, getNodeId(snakeBody[tailIndex], gameState));
+    if(pathToTail.path[1]){
+        return {path: pathToTail.path[1], turns: 0};
+    }
+
     for (let turn = 1; turn <= tailIndex; turn++) {
         const futureTail = snakeBody[tailIndex - turn]; 
         const futureTailNode = getNodeId(futureTail, gameState);
@@ -251,6 +256,8 @@ function findClosestOpening(gameState, board, headNode) {
             return { opening: futureTailNode, turns: turn }; 
         }
     }
+
+
     return null;
 }
 
@@ -285,7 +292,7 @@ function flood(prevPath, headNode, board, gameState, myHead){
     };
     
     paths.sort((a, b) => b.space - a.space);
-    
+
     let equal = true;
     for(let i = 0; i < paths.length-1; i++){
         if(paths[i+1]){
@@ -295,7 +302,19 @@ function flood(prevPath, headNode, board, gameState, myHead){
         }
     }
 
+    
     if(!equal){
+        console.log(board[headNode].connections, board[getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)].connections);
+        let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
+        if(findTail.path[1]){
+            console.log(findTail.path[1]);
+            return findTail.path[1];
+        }
+        
+        if(findTail.path[1]){
+            console.log("finding tail side " + findTail.path);
+            return findTail.path[1];
+        }
         if(paths[1]){
             if(paths[1].space == paths[0].space && board[getNodeId(myHead, gameState)].connections[paths[1].connection][0] == prevPath){
                 return prevPath

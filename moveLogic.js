@@ -5,6 +5,8 @@ export default function move(game){
     const headNode = getNodeId(myHead, gameState);
     let board = {};
 
+    //console.log(gameState.board.snakes);
+
     //INIT BOARD
     let c = 0;
     for(let i=0; i<gameState.board.height; i++){
@@ -73,6 +75,10 @@ export default function move(game){
 
     pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[0]);
     pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
+    if(checkEnclosure(board, headNode, gameState)){
+        console.log("enclosed");
+        console.log(findClosestOpening(gameState, board, headNode));
+    }
 
     let path = aStar(board, headNode, pathfindTo);
     
@@ -221,19 +227,31 @@ function snakeHead(gameState){
     
 }
 
-function checkEnclosure(board, headNode){
-    let up = bfs(board, {x:board[headNode].position.x, y:board[headNode].position.y + 1});
-    let down = bfs(board, {x:board[headNode].position.x, y:board[headNode].position.y - 1});
-    let left = bfs(board, {x:board[headNode].position.x - 1, y:board[headNode].position.y});
-    let right = bfs(board, {x:board[headNode].position.x + 1, y:board[headNode].position.y});
+function checkEnclosure(board, headNode, gameState){
+    let up = bfs(board, getNodeId({x:board[headNode].position.x, y:board[headNode].position.y + 1}, gameState) ?? headNode);
+    let down = bfs(board, getNodeId({x:board[headNode].position.x, y:board[headNode].position.y - 1}, gameState) ?? headNode);
+    let left = bfs(board, getNodeId({x:board[headNode].position.x - 1, y:board[headNode].position.y}, gameState) ?? headNode);
+    let right = bfs(board, getNodeId({x:board[headNode].position.x + 1, y:board[headNode].position.y}, gameState) ?? headNode);
 
     let arr = [up, down, left, right];
-    arr.sort();
-    return arr[3] > 10;
+    arr = arr.filter((dir) => dir != undefined);
+    arr = arr.sort((a, b) => a - b);
+    return arr[arr.length-1] < 10;
 }
 
-function findClosestNodeToTail(){
-    
+function findClosestOpening(gameState, board, headNode) {
+    const snakeBody = gameState.you.body;
+    const tailIndex = snakeBody.length - 1;
+
+    for (let turn = 1; turn <= tailIndex; turn++) {
+        const futureTail = snakeBody[tailIndex - turn]; 
+        const futureTailNode = getNodeId(futureTail, gameState);
+
+        if (aStar(board, headNode, futureTailNode).path[1]) {
+            return { opening: futureTailNode, turns: turn }; 
+        }
+    }
+    return null;
 }
 
 //
@@ -244,9 +262,19 @@ function findClosestNodeToTail(){
 //
 //
 
+// IS OCCUPIED
+function isOccupied(node, gameState) {
+    const snakeBodies = gameState.board.snakes.flatMap(snake => snake.body);
+    return snakeBodies.some(segment => getNodeId(segment, gameState) === node);
+}
+
 // GET NODE ID
 function getNodeId(pos, gameState){
-    return pos.y*gameState.board.width + pos.x;
+    if(pos.y < gameState.board.height && pos.x < gameState.board.width && pos.y >= 0 && pos.x >= 0){
+        return pos.y*gameState.board.width + pos.x;
+    } else {
+        return undefined;
+    }
 }
 
 // FLOOD MAP TO CHOOSE BEST DIRECTION

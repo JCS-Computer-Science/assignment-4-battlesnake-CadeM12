@@ -137,7 +137,7 @@ function connectNodes(gameState, board){
 // A-STAR APTHFINDING
 //
 //
-function aStar(graph, start, target){
+function aStar(graph, start, target, from = undefined){
     let openSet = [{ node: start, f: 0, path: [start] }];
     let gScores = { [start]: 0 };
 
@@ -145,7 +145,10 @@ function aStar(graph, start, target){
 
         openSet.sort((a, b) => a.f - b.f);
         let current = openSet.shift();
-        
+        if(from == 'flood'){
+            console.log(current.path);
+        }
+
         if (current.node === target) {
             return { path: current.path, cost: gScores[target] };
         };
@@ -302,19 +305,17 @@ function flood(prevPath, headNode, board, gameState, myHead){
         }
     }
 
+    let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
+    
+    if(findTail.path[1] && !equal){
+        console.log("finding tail side " + findTail.path);
+        return findTail.path[1];
+    }
     
     if(!equal){
-        console.log(board[headNode].connections, board[getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)].connections);
-        let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
-        if(findTail.path[1]){
-            console.log(findTail.path[1]);
-            return findTail.path[1];
-        }
-        
-        if(findTail.path[1]){
-            console.log("finding tail side " + findTail.path);
-            return findTail.path[1];
-        }
+        //console.log(board[headNode].connections, board[getNodeId(gameState.you.body[gameState.you.body.length-1], gameState)].connections);
+        //console.log(board);
+
         if(paths[1]){
             if(paths[1].space == paths[0].space && board[getNodeId(myHead, gameState)].connections[paths[1].connection][0] == prevPath){
                 return prevPath

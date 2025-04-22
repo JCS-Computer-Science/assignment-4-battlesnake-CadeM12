@@ -29,14 +29,43 @@ export default function move(game){
         }
     }
 
+    //if(){
+//
+    //}
     pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[0]);
     pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
+
     if(checkEnclosure(board, headNode, gameState).turns == 0){
-        //console.log("enclosed");
+        console.log("THIS");
         pathfindTo = findClosestOpening(gameState, board, headNode).path;
     }
 
+    if(checkEnclosure(board, headNode, gameState) && !aStar(board, headNode, pathfindTo).path[1]){
+        console.log("enclosed");
+        let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
+        let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
+        pathfindTo = path1.path[1] ? path1.path[1] : path2.path[1];
+    }
+
     let path = aStar(board, headNode, pathfindTo);
+
+    
+    if(path.cost == Infinity){
+        let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
+        let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
+        path = path1.path[1] ? path1 : path2;
+    }else if(path.cost > 50){
+        console.log("looping");
+        for(let i = 0; i < board[headNode].connections.length; i++){
+            path = aStar(board, headNode, board[board[headNode].connections[i][0]]);
+            console.log(path)
+            if(path.cost < 50){
+                console.log("through")
+                path = path;
+                break;
+            }
+        }
+    }
     
     let nextMove = calculateNextMove(path.path[1], board, headNode);
     
@@ -227,7 +256,7 @@ function findClosestOpening(gameState, board, headNode) {
         const futureTailNode = getNodeId(futureTail, gameState);
 
         if (aStar(board, headNode, futureTailNode).path[1]) {
-            return { opening: futureTailNode, turns: turn }; 
+            return { path: aStar(board, headNode, futureTailNode).path[1], turns: turn }; 
         }
     }
 
@@ -279,7 +308,7 @@ function flood(prevPath, headNode, board, gameState, myHead){
     let findTail = aStar(board, headNode, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
     //console.log(findTail);
 
-    if(findTail.path[1] && !aStar(board, board[headNode].connections[paths[0].connection][0], board[headNode].connections[paths[paths.length-1].connection][0]).path[1]){
+    if(findTail.path[1] && (!aStar(board, board[headNode].connections[paths[0].connection][0], board[headNode].connections[paths[paths.length-1].connection][0]).path[1] || board[headNode].connections[paths[0].connection][0] == board[headNode].connections[paths[paths.length-1].connection][0])){
         //console.log("finding tail side " + findTail.path);
         return findTail.path[1];
     }

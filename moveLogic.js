@@ -42,22 +42,30 @@ export default function move(game){
 
     if(checkEnclosure(board, headNode, gameState) && !aStar(board, headNode, pathfindTo).path[1]){
         console.log("enclosed");
+        console.log(findClosestOpening(gameState, board, headNode));
         let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
         let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
+
+
         pathfindTo = path1.path[1] ? path1.path[1] : path2.path[1];
     }
 
     let path = aStar(board, headNode, pathfindTo);
 
+    console.log(path);
     
     if(path.cost == Infinity){
+        console.log(findClosestOpening(gameState, board, headNode));
         let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
         let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
+
+
         path = path1.path[1] ? path1 : path2;
     }else if(path.cost > 50){
-        console.log("looping");
+        console.log("looping: " + board[headNode].connections.length);
         for(let i = 0; i < board[headNode].connections.length; i++){
-            path = aStar(board, headNode, board[board[headNode].connections[i][0]]);
+            console.log('this')
+            path = aStar(board, headNode, board[headNode].connections[i][0]);
             console.log(path)
             if(path.cost < 50){
                 console.log("through")
@@ -248,15 +256,25 @@ function findClosestOpening(gameState, board, headNode) {
 
     const pathToTail = aStar(board, headNode, getNodeId(snakeBody[tailIndex], gameState));
     if(pathToTail.path[1]){
-        return {path: pathToTail.path[1], turns: 0};
+        return {path: pathToTail, turns: 0};
     }
 
     for (let turn = 1; turn <= tailIndex; turn++) {
         const futureTail = snakeBody[tailIndex - turn]; 
         const futureTailNode = getNodeId(futureTail, gameState);
 
-        if (aStar(board, headNode, futureTailNode).path[1]) {
-            return { path: aStar(board, headNode, futureTailNode).path[1], turns: turn }; 
+        let connectionUp = futureTailNode + 11;
+        let connectionDown = futureTailNode - 11;
+        let connectionLeft = futureTailNode - 1;
+        let connectionRight = futureTailNode + 1;
+
+        let connectionsArr = [connectionUp, connectionDown, connectionLeft, connectionRight];
+        connectionsArr = connectionsArr.filter((node) => !isOccupied(node, gameState));
+
+        //console.log(futureTailNode, connectionsArr);
+
+        if(aStar(board, headNode, connectionsArr[0]).path[1]) {
+            return { path: aStar(board, headNode, connectionsArr[0]), turns: turn }; 
         }
     }
 
@@ -274,8 +292,10 @@ function findClosestOpening(gameState, board, headNode) {
 
 // IS OCCUPIED
 function isOccupied(node, gameState) {
-    const snakeBodies = gameState.board.snakes.flatMap(snake => snake.body);
-    return snakeBodies.some(segment => getNodeId(segment, gameState) === node);
+    let snakeBodies = gameState.board.snakes.flatMap(snake => snake.body);
+    snakeBodies = snakeBodies.map((part) => getNodeId(part, gameState));
+    //console.log(snakeBodies);
+    return snakeBodies.includes(node);
 }
 
 // GET NODE ID

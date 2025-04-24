@@ -271,10 +271,14 @@ function findClosestOpening(gameState, board, headNode) {
         let connectionsArr = [connectionUp, connectionDown, connectionLeft, connectionRight];
         connectionsArr = connectionsArr.filter((node) => !isOccupied(node, gameState));
 
-        //console.log(futureTailNode, connectionsArr);
+        console.log(futureTailNode, connectionsArr);
 
         if(aStar(board, headNode, connectionsArr[0]).path[1]) {
-            return { path: aStar(board, headNode, connectionsArr[0]), turns: turn }; 
+            console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn });
+            return { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }; 
+        } else if(aStar(board, headNode, connectionsArr[1]).path[1]){
+            console.log("2nd path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn });
+            return { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }; 
         }
     }
 

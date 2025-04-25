@@ -43,11 +43,10 @@ export default function move(game){
     if(checkEnclosure(board, headNode, gameState) && !aStar(board, headNode, pathfindTo).path[1]){
         console.log("enclosed");
         console.log(findClosestOpening(gameState, board, headNode));
-        let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
-        let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
+        let pathToNearest = findClosestOpening(gameState, board, headNode).path[1]
 
 
-        pathfindTo = path1.path[1] ? path1.path[1] : path2.path[1];
+        pathfindTo = pathToNearest;
     }
 
     let path = aStar(board, headNode, pathfindTo);
@@ -263,21 +262,25 @@ function findClosestOpening(gameState, board, headNode) {
         const futureTail = snakeBody[tailIndex - turn]; 
         const futureTailNode = getNodeId(futureTail, gameState);
 
-        let connectionUp = futureTailNode + 11;
-        let connectionDown = futureTailNode - 11;
-        let connectionLeft = futureTailNode - 1;
-        let connectionRight = futureTailNode + 1;
+        let connectionUp = getNodeId({x: futureTail.x, y: futureTail.y + 1}, gameState);
+        let connectionDown = getNodeId({x: futureTail.x, y: futureTail.y - 1}, gameState);
+        let connectionLeft = getNodeId({x: futureTail.x - 1, y: futureTail.y}, gameState);
+        let connectionRight = getNodeId({x: futureTail.x + 1, y: futureTail.y}, gameState);
 
         let connectionsArr = [connectionUp, connectionDown, connectionLeft, connectionRight];
+        connectionsArr = connectionsArr.filter((node) => node != undefined);
         connectionsArr = connectionsArr.filter((node) => !isOccupied(node, gameState));
 
         console.log(futureTailNode, connectionsArr);
+        console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);
+        console.log("2nd path + " + { path: aStar(board, headNode, connectionsArr[1]).path, turns: turn }.path);
+
 
         if(aStar(board, headNode, connectionsArr[0]).path[1]) {
-            console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn });
+            //console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);
             return { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }; 
         } else if(aStar(board, headNode, connectionsArr[1]).path[1]){
-            console.log("2nd path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn });
+            //console.log("2nd path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);
             return { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }; 
         }
     }

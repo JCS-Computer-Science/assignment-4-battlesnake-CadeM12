@@ -31,7 +31,8 @@ export default function move(game){
 
     pathfindTo = nearestFood(gameState, board, myHead, gameState.you.body[0]);
 
-    if(gameState.you.health > 40 && gameState.you.body.length > longestLength + 2){
+    if(gameState.you.health > 40 && gameState.you.body.length > longestLength + 1){
+        console.log("Hunting")
         pathfindTo = huntSnake(gameState, board, headNode);
     }
 
@@ -42,7 +43,7 @@ export default function move(game){
     }
 
     if(checkEnclosure(board, headNode, gameState) && !aStar(board, headNode, pathfindTo).path[1]){
-        console.log("enclosed");
+        console.log("Enclosed, Closest Opening:");
         console.log(findClosestOpening(gameState, board, headNode));
         let pathToNearest = findClosestOpening(gameState, board, headNode).path[1]
 
@@ -55,7 +56,7 @@ export default function move(game){
     //console.log(path);
     
     if(path.cost > 50){
-        console.log("looping: " + board[headNode].connections.length);
+        console.log("Unsafe, checking moves: " + board[headNode].connections.length);
         for(let i = 0; i < board[headNode].connections.length; i++){
             let newPath = aStar(board, headNode, board[headNode].connections[i][0]);
             console.log(newPath)
@@ -68,6 +69,7 @@ export default function move(game){
     }
 
     if(path.cost == Infinity){
+        console.log("No Path, Closest Opening:")
         console.log(findClosestOpening(gameState, board, headNode));
         let path1 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[0][0]);
         let path2 = aStar(board, headNode, board[findClosestOpening(gameState, board, headNode).path[1]].connections[1][0]);
@@ -123,7 +125,7 @@ function connectNodes(gameState, board){
             (board[j].position.y == board[i].position.y-1 && board[j].position.x == board[i].position.x) || 
             (board[j].position.y == board[i].position.y+1 && board[j].position.x == board[i].position.x)) &&
             (!snakeBodies.includes(j))){
-                if(snakeHeads.includes(j) && j != tailNode){
+                if(snakeHeads.includes(j)){
                     board[i].connections.push([j, 100]);
                 }else if(food.includes(j)){
                     board[i].connections.push([j, 5]);
@@ -187,6 +189,36 @@ function heuristic(start, target, nodes){
         return Infinity;
     };
 };
+
+function findLongestPath(board, start, end) {
+    let maxPath = [];
+    let maxWeight = -Infinity;
+
+    function dfs(current, path, weight, visited) {
+        if (current === end) {
+            if (weight > maxWeight) {
+                maxWeight = weight;
+                maxPath = [...path];
+            }
+            return;
+        }
+
+        for (const [neighbor, cost] of board[current].connections || []) {
+            if (!visited.has(neighbor) && cost != 100) {
+                visited.add(neighbor);
+                path.push(neighbor);
+                dfs(neighbor, path, weight + cost, visited);
+                path.pop();
+                visited.delete(neighbor);
+            }
+        }
+    }
+
+    dfs(start, [start], 0, new Set([start]));
+
+    return { path: maxPath, cost: maxWeight };
+}
+
 //
 // END A-STAR
 
@@ -242,9 +274,12 @@ function huntSnake(gameState, board, headNode){
     snakeIndicesByLength.sort((a, b) => gameState.board.snakes[b].body.length-gameState.board.snakes[a].body.length);
 
     for(let i = 0; i < snakeIndicesByLength.length; i++){
-        let pathToSnake = aStar(board, headNode, besideArr(gameState.board.snakes[i].body[0], gameState));
-        if(pathToSnake.path[1]){
-            return pathToSnake.path[1];
+        let connectionsArr = besideArr(gameState.board.snakes[i].body[0], gameState);
+        for(let i = 0; i < connectionsArr.length; i++){
+            let pathToConnection = aStar(board, headNode, connectionsArr[i]);
+            if(pathToConnection.path[1]){
+                return pathToConnection.path[1];
+            }
         }
     }
 }
@@ -291,14 +326,14 @@ function findClosestOpening(gameState, board, headNode) {
 
         //console.log(futureTailNode, connectionsArr);
 
-        if(aStar(board, headNode, connectionsArr[0]).path[1]) {
+        if(findLongestPath(board, headNode, connectionsArr[0]).path[1]) {
             //console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);
-            console.log("taking path 1");
-            return { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }; 
-        } else if(aStar(board, headNode, connectionsArr[1]).path[1]){
+            console.log("Taking path 1");
+            return { path: findLongestPath(board, headNode, connectionsArr[0]).path, turns: turn }; 
+        } else if(findLongestPath(board, headNode, connectionsArr[1]).path[1]){
             //console.log("2nd path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);
-            console.log("taking path 2");
-            return { path: aStar(board, headNode, connectionsArr[1]).path, turns: turn }; 
+            console.log("Taking path 2");
+            return { path: findLongestPath(board, headNode, connectionsArr[1]).path, turns: turn }; 
         }
     }
 

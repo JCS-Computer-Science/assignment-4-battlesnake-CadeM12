@@ -43,6 +43,10 @@ export default function move(game){
         pathfindTo = huntSnake(gameState, board, headNode);
     }
 
+    if(gameState.you.health > 40 && gameState.you.body.length >= 20){
+        pathfindTo = huntSnake(gameState, board, getNodeId(gameState.you.body[gameState.you.body.length-1], gameState));
+    }
+
     pathfindTo = flood(pathfindTo, headNode, board, gameState, myHead);
 
     if(checkEnclosure(board, headNode, gameState).turns == 0){
@@ -62,6 +66,22 @@ export default function move(game){
 
     console.log("Path: " + path.path + " Cost: " + path.cost);
     
+    
+    if(path.cost > 19){
+        console.log("Unsafe, checking moves: " + board[headNode].connections.length);
+        let lowestCost = {path: [], cost: Infinity};
+        for(let i = 0; i < board[headNode].connections.length; i++){
+            let newPath = aStar(board, headNode, board[headNode].connections[i][0]);
+            console.log(newPath)
+            if(newPath.cost < lowestCost.cost){
+                //console.log("through")
+                lowestCost.path = newPath;
+                lowestCost.cost = newPath.cost;
+            }
+        }
+        path = lowestCost.path;
+    }
+    
     if(path.cost == Infinity){
         console.log("No Path, Closest Opening:")
         console.log(findClosestOpening(gameState, board, headNode));
@@ -71,20 +91,6 @@ export default function move(game){
 
         path = path1.path[1] ? path1 : path2;
     }
-    
-    if(path.cost > 19){
-        console.log("Unsafe, checking moves: " + board[headNode].connections.length);
-        for(let i = 0; i < board[headNode].connections.length; i++){
-            let newPath = aStar(board, headNode, board[headNode].connections[i][0]);
-            console.log(newPath)
-            if(newPath.cost < 19){
-                //console.log("through")
-                path = newPath;
-                break;
-            }
-        }
-    }
-
     
     let nextMove = calculateNextMove(path.path[1], board, headNode);
     
@@ -99,6 +105,7 @@ function connectNodes(gameState, board){
     let snakeBodies = [];
     let snakeHeads = [];
     let hazards = [];
+    let edges = [];
     let food = [];
     const tailNode = getNodeId(gameState.you.body[gameState.you.body.length-1], gameState);
 
@@ -115,6 +122,15 @@ function connectNodes(gameState, board){
                 snakeHeads.push(getNodeId({x: headPoint.x, y: headPoint.y-1}, gameState));
             }
         }
+    }
+    let c = 0;
+    for(let i = 0; i < gameState.board.height; i++){
+        edges.push(getNodeId({x: 0, y: 0 + c}, gameState));
+        edges.push(getNodeId({x: gameState.board.width - 1, y: 0 + c}, gameState));
+    }
+    for(let i = 0; i < gameState.board.width; i++){
+        edges.push(getNodeId({x: 0 + c, y: 0}, gameState));
+        edges.push(getNodeId({x: 0 + c, y: gameState.board.height - 1}, gameState));
     }
     if(gameState.board.hazards){
         for(let i = 0; i < gameState.board.hazards.length; i++){
@@ -141,7 +157,7 @@ function connectNodes(gameState, board){
             (!snakeBodies.includes(j))){
                 if(snakeHeads.includes(j)){
                     board[i].connections.push([j, 100]);
-                } else if(hazards.includes(j)){
+                } else if(hazards.includes(j) || edges.includes(j)){
                     board[i].connections.push([j, 20]);
                 }else if(food.includes(j)){
                     board[i].connections.push([j, 5]);
@@ -255,7 +271,7 @@ function nearestFood(gameState, board, myHead, start){
     let possible = {path:Infinity, food: undefined};
     for(let i = 0; i < safeFood.length; i++){
         let pathToFood = aStar(board, getNodeId(myHead, gameState), safeFood[i])
-        if(pathToFood.cost > 90){
+        if(pathToFood.cost > 19){
             continue;
         }
         let dist = pathToFood.path.length;
@@ -335,12 +351,11 @@ function findClosestOpening(gameState, board, headNode) {
     }
 
     for (let turn = 1; turn <= tailIndex; turn++) {
+        
         const futureTail = snakeBody[tailIndex - turn]; 
         const futureTailNode = getNodeId(futureTail, gameState);
 
         let connectionsArr = besideArr(futureTail, gameState);
-
-        //console.log(futureTailNode, connectionsArr);
 
         if(findLongestPath(board, headNode, connectionsArr[0]).path[1]) {
             //console.log("1st path + " + { path: aStar(board, headNode, connectionsArr[0]).path, turns: turn }.path);

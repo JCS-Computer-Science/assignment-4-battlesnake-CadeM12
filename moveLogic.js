@@ -74,12 +74,14 @@ export default function move(game){
             let newPath = aStar(board, headNode, board[headNode].connections[i][0]);
             console.log(newPath)
             if(newPath.cost < lowestCost.cost){
-                //console.log("through")
+                //console.log("through balls")
                 lowestCost.path = newPath;
                 lowestCost.cost = newPath.cost;
             }
         }
-        path = lowestCost.path;
+        if(path.cost > lowestCost.cost){
+            path = lowestCost.path;
+        }
     }
     
     if(path.cost == Infinity){
@@ -155,7 +157,9 @@ function connectNodes(gameState, board){
             (board[j].position.y == board[i].position.y-1 && board[j].position.x == board[i].position.x) || 
             (board[j].position.y == board[i].position.y+1 && board[j].position.x == board[i].position.x)) &&
             (!snakeBodies.includes(j))){
-                if(snakeHeads.includes(j)){
+                if (snakeHeads.includes(j) && food.includes(j)){
+                    board[i].connections.push([j, 110]);
+                } else if(snakeHeads.includes(j)){
                     board[i].connections.push([j, 100]);
                 } else if(hazards.includes(j) || edges.includes(j)){
                     board[i].connections.push([j, 20]);

@@ -150,7 +150,7 @@ function connectNodes(gameState, board){
     }
 
     for(let i = 0; i < (gameState.board.width * gameState.board.height); i++){
-        for(let j = 0; j < (gameState.board.width * gameState.board.height); j++)
+        for(let j = 0; j < (gameState.board.width * gameState.board.height); j++)   
         {
             if(((board[j].position.x == board[i].position.x-1 && board[j].position.y == board[i].position.y) || 
             (board[j].position.x == board[i].position.x+1 && board[j].position.y == board[i].position.y) || 
